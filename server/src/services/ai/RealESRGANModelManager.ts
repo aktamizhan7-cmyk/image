@@ -48,12 +48,36 @@ export class RealESRGANModelManager {
     return RealESRGANModelManager.instance;
   }
 
+  public getAvailableModel(preferred = 'realesrgan-x4plus'): string {
+    const preferredBin = path.join(this.modelsDir, `${preferred}.bin`);
+    if (existsSync(preferredBin)) return preferred;
+
+    const candidates = [
+      'realesrgan-x4plus-anime',
+      'realesr-animevideov3-x4',
+      'realesr-animevideov3-x2',
+      'realesr-animevideov3-x3',
+      'realesrgan-x4plus',
+    ];
+    for (const cand of candidates) {
+      if (existsSync(path.join(this.modelsDir, `${cand}.bin`))) {
+        return cand;
+      }
+    }
+    return preferred;
+  }
+
   public async isAvailable(): Promise<boolean> {
     if (!existsSync(this.binPath)) {
       return false;
     }
-    const defaultModel = path.join(this.modelsDir, 'realesrgan-x4plus.bin');
-    return existsSync(defaultModel);
+    const candidates = [
+      'realesrgan-x4plus.bin',
+      'realesrgan-x4plus-anime.bin',
+      'realesr-animevideov3-x4.bin',
+      'realesr-animevideov3-x2.bin',
+    ];
+    return candidates.some((c) => existsSync(path.join(this.modelsDir, c)));
   }
 
   /**
@@ -134,13 +158,21 @@ export class RealESRGANModelManager {
       }
     }
 
+    let resolvedModel = this.getAvailableModel(modelName);
+    if (resolvedModel.startsWith('realesr-animevideov3')) {
+      const scaleModel = `realesr-animevideov3-x${scale}`;
+      if (existsSync(path.join(this.modelsDir, `${scaleModel}.bin`))) {
+        resolvedModel = scaleModel;
+      }
+    }
+
     const safeGpuId = Math.max(0, gpuId);
 
     const args = [
       '-i', inputPath,
       '-o', outputPath,
       '-s', scale.toString(),
-      '-n', modelName,
+      '-n', resolvedModel,
       '-m', this.modelsDir,
       '-t', tileSize.toString(),
       '-g', safeGpuId.toString(),
