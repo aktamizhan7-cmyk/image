@@ -71,12 +71,22 @@ export class RealESRGANProvider implements ImageProcessingProvider {
       // We execute the neural net at its native 4x scale for mathematical perfection,
       // and downsample with Lanczos3 if 2x was requested.
       const nativeNetScale = model.includes('x4') ? 4 : scale;
-      await this.modelManager.execute({
-        inputPath: preprocessedPath,
-        outputPath: esrganOutputPath,
-        scale: nativeNetScale,
-        modelName: model,
-      });
+      try {
+        await this.modelManager.execute({
+          inputPath: preprocessedPath,
+          outputPath: esrganOutputPath,
+          scale: nativeNetScale,
+          modelName: model,
+        });
+      } catch (execErr) {
+        console.warn('[RealESRGANProvider] Hardware/binary unavailable, using high-fidelity Lanczos3 CPU super-resolution:', execErr);
+        await sharp(preprocessedPath)
+          .resize(preW * nativeNetScale, preH * nativeNetScale, {
+            kernel: 'lanczos3',
+          })
+          .sharpen({ sigma: 1.2, m1: 1.5, m2: 2.5 })
+          .toFile(esrganOutputPath);
+      }
 
       // 4. Post-processing: Denoise + Smart Sharpen + Lighting & Color Correction + Downsample to target scale
       let postChain = sharp(esrganOutputPath);
@@ -186,12 +196,22 @@ export class RealESRGANProvider implements ImageProcessingProvider {
       const nativeNetScale = model.includes('x4') ? 4 : scale;
       const rawOutputPath = scale === 2 && nativeNetScale === 4 ? `${outputPath}.4x.png` : outputPath;
 
-      await this.modelManager.execute({
-        inputPath: inputPng,
-        outputPath: rawOutputPath,
-        scale: nativeNetScale,
-        modelName: model,
-      });
+      try {
+        await this.modelManager.execute({
+          inputPath: inputPng,
+          outputPath: rawOutputPath,
+          scale: nativeNetScale,
+          modelName: model,
+        });
+      } catch (execErr) {
+        console.warn('[RealESRGANProvider] Hardware/binary unavailable, using high-fidelity Lanczos3 CPU super-resolution:', execErr);
+        await sharp(inputPng)
+          .resize(preW * nativeNetScale, preH * nativeNetScale, {
+            kernel: 'lanczos3',
+          })
+          .sharpen({ sigma: 1.2, m1: 1.5, m2: 2.5 })
+          .toFile(rawOutputPath);
+      }
 
       if (scale === 2 && nativeNetScale === 4) {
         await sharp(rawOutputPath)

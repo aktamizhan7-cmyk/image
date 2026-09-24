@@ -1,0 +1,7 @@
+{
+  "name": "AI & Manual Image Enhancer",
+  "description": "Production-quality AI + Manual Image Enhancer application featuring real-time super-resolution, skin tone optimization, and pro grading controls.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

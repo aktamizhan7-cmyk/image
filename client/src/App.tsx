@@ -128,7 +128,8 @@ export default function App() {
       setEnhancedMetadata(result.metadata);
       setStatusMessage(`Enhanced in ${(result.processingTimeMs / 1000).toFixed(1)}s`);
     } catch (err: any) {
-      alert(`AI Enhancement failed: ${err.message || err}`);
+      console.error('[AiEnhancement] error:', err);
+      setStatusMessage(`Enhancement failed: ${err.message || err}`);
     } finally {
       setIsAiProcessing(false);
     }
@@ -224,13 +225,11 @@ export default function App() {
         canUndo={canUndo}
         canRedo={canRedo}
         onNewImage={() => {
-          if (originalUrl && confirm('Open a new image? Current unsaved work will be cleared.')) {
-            setOriginalFile(null);
-            setOriginalUrl(null);
-            setEnhancedBlob(null);
-            setEnhancedUrl(null);
-            resetManual();
-          }
+          setOriginalFile(null);
+          setOriginalUrl(null);
+          setEnhancedBlob(null);
+          setEnhancedUrl(null);
+          resetManual();
         }}
         onUndo={undo}
         onRedo={redo}
