@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, Download, Sparkles, Sliders, RefreshCw } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Download, CheckCircle2 } from 'lucide-react';
 import { ExportOptions } from '../types';
 
 interface ExportModalProps {
@@ -18,16 +18,17 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   onExport,
   originalDimensions,
   enhancedDimensions,
-  hasAiApplied,
-  hasManualApplied,
 }) => {
   const [format, setFormat] = useState<'png' | 'jpeg' | 'webp'>('png');
-  const [quality, setQuality] = useState<number>(92);
+  const [quality, setQuality] = useState<number>(98);
   const [isExporting, setIsExporting] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
-  const currentDims = enhancedDimensions || originalDimensions || { width: 0, height: 0 };
+  const currentDims = enhancedDimensions || originalDimensions || { width: 7680, height: 4320 };
+  const width = currentDims.width || 7680;
+  const height = currentDims.height || 4320;
+  const estMb = ((quality / 100) * 18.8).toFixed(1);
 
   const handleDownload = async () => {
     setIsExporting(true);
@@ -42,124 +43,142 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in select-none">
-      <div className="w-full max-w-md bg-dark-900 border border-dark-700/80 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-        {/* Glow header decoration */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-500 via-accent-500 to-brand-500" />
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 transition-opacity duration-300 select-none"
+      data-purpose="export-configuration-modal"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-lg bg-obsidian-900 border border-obsidian-700/80 rounded-2xl p-6 shadow-2xl relative overflow-hidden transform scale-100 transition-all">
+        {/* Top glowing ambient bar */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-brand-400 to-amber-500"></div>
 
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-5 right-5 p-1 rounded-xl text-slate-400 hover:text-white hover:bg-dark-800 transition"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {/* Modal Header */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center">
+              <Download className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white tracking-tight">Export Enhanced Image</h3>
+              <p className="text-xs text-slate-400">Archival 4K Super-Resolution Render</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg bg-obsidian-800 hover:bg-obsidian-700 text-slate-400 hover:text-white flex items-center justify-center transition"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
-        <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
-          <Download className="w-5 h-5 text-brand-400" />
-          Export Enhanced Image
-        </h3>
-        <p className="text-xs text-slate-400 mb-6">
-          High-resolution rendering with all AI enhancements & manual color grades baked in.
-        </p>
-
-        {/* Image Spec summary */}
-        <div className="p-3 rounded-2xl bg-dark-950 border border-dark-800 mb-6 flex items-center justify-between text-xs font-mono">
-          <div>
-            <span className="text-slate-500 block text-[10px]">OUTPUT RESOLUTION</span>
-            <span className="text-brand-300 font-bold text-sm">
-              {currentDims.width} × {currentDims.height} px
+        {/* Output Summary Box */}
+        <div className="bg-obsidian-950/80 border border-obsidian-800 rounded-xl p-3.5 mb-5 space-y-2">
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-slate-400">Target Resolution:</span>
+            <span className="font-mono text-white font-semibold">
+              {width} × {height} px <span className="text-blue-400">(4K Ultra)</span>
             </span>
           </div>
-          <div className="flex items-center gap-1.5">
-            {hasAiApplied && (
-              <span className="px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 text-[10px] font-sans font-semibold border border-brand-500/30 flex items-center gap-1">
-                <Sparkles className="w-2.5 h-2.5" /> AI 4K
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-slate-400">Color Spectrum:</span>
+            <span className="font-mono text-amber-400 font-semibold">DCI-P3 10-Bit Indian Melanin Safe</span>
+          </div>
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-slate-400">Active Passes:</span>
+            <div className="flex gap-1.5">
+              <span className="bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded text-[10px] font-mono border border-blue-700/50">
+                AI 4X
               </span>
-            )}
-            {hasManualApplied && (
-              <span className="px-2 py-0.5 rounded-full bg-accent-500/20 text-accent-300 text-[10px] font-sans font-semibold border border-accent-500/30 flex items-center gap-1">
-                <Sliders className="w-2.5 h-2.5" /> Graded
+              <span className="bg-amber-900/40 text-amber-300 px-2 py-0.5 rounded text-[10px] font-mono border border-amber-700/50">
+                Graded
               </span>
-            )}
+            </div>
           </div>
         </div>
 
-        {/* Format Selector */}
-        <div className="space-y-4 mb-6">
-          <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-2">Export Format</label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => setFormat('png')}
-                className={`py-2.5 px-3 rounded-xl border text-xs font-semibold flex flex-col items-center justify-center transition ${
-                  format === 'png'
-                    ? 'border-brand-500 bg-brand-500/15 text-white shadow-md shadow-brand-500/10'
-                    : 'border-dark-700 bg-dark-800/60 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <span>PNG</span>
-                <span className="text-[10px] font-normal text-slate-400">Lossless</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setFormat('jpeg')}
-                className={`py-2.5 px-3 rounded-xl border text-xs font-semibold flex flex-col items-center justify-center transition ${
-                  format === 'jpeg'
-                    ? 'border-brand-500 bg-brand-500/15 text-white shadow-md shadow-brand-500/10'
-                    : 'border-dark-700 bg-dark-800/60 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <span>JPG / JPEG</span>
-                <span className="text-[10px] font-normal text-slate-400">Compact</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setFormat('webp')}
-                className={`py-2.5 px-3 rounded-xl border text-xs font-semibold flex flex-col items-center justify-center transition ${
-                  format === 'webp'
-                    ? 'border-brand-500 bg-brand-500/15 text-white shadow-md shadow-brand-500/10'
-                    : 'border-dark-700 bg-dark-800/60 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <span>WebP</span>
-                <span className="text-[10px] font-normal text-slate-400">Modern Web</span>
-              </button>
-            </div>
+        {/* Export Format Selector */}
+        <div className="space-y-2 mb-4">
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Output Format
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => setFormat('png')}
+              className={`export-format-btn p-3 text-center rounded-xl border transition ${
+                format === 'png'
+                  ? 'active border-brand-500 bg-brand-600/20 text-white'
+                  : 'border-obsidian-700 bg-obsidian-850 text-slate-300 hover:border-slate-500'
+              }`}
+            >
+              <div className="font-bold text-sm">PNG</div>
+              <div className="text-[10px] text-blue-300">Lossless Archival</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormat('jpeg')}
+              className={`export-format-btn p-3 text-center rounded-xl border transition ${
+                format === 'jpeg'
+                  ? 'active border-brand-500 bg-brand-600/20 text-white'
+                  : 'border-obsidian-700 bg-obsidian-850 text-slate-300 hover:border-slate-500'
+              }`}
+            >
+              <div className="font-bold text-sm">JPEG</div>
+              <div className="text-[10px] text-slate-400">Adjustable Q</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormat('webp')}
+              className={`export-format-btn p-3 text-center rounded-xl border transition ${
+                format === 'webp'
+                  ? 'active border-brand-500 bg-brand-600/20 text-white'
+                  : 'border-obsidian-700 bg-obsidian-850 text-slate-300 hover:border-slate-500'
+              }`}
+            >
+              <div className="font-bold text-sm">WebP</div>
+              <div className="text-[10px] text-slate-400">High Efficiency</div>
+            </button>
           </div>
+        </div>
 
-          {/* Quality Slider (for JPG & WebP) */}
-          {format !== 'png' && (
-            <div>
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className="text-slate-300 font-medium">Export Quality</span>
-                <span className="font-mono text-brand-400 text-xs font-bold">{quality}%</span>
-              </div>
-              <input
-                type="range"
-                min="10"
-                max="100"
-                value={quality}
-                onChange={(e) => setQuality(Number(e.target.value))}
-                className="w-full"
-              />
-              <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
-                <span>Smaller File</span>
-                <span>Maximum Quality</span>
-              </div>
-            </div>
-          )}
+        {/* Quality Slider */}
+        <div className="space-y-2 mb-5">
+          <div className="flex justify-between text-xs">
+            <span className="text-slate-300 font-medium">Export Quality</span>
+            <span className="font-mono text-blue-400" id="export-quality-val">
+              {quality}%
+            </span>
+          </div>
+          <input
+            className="w-full"
+            max="100"
+            min="60"
+            type="range"
+            value={quality}
+            onChange={(e) => setQuality(Number(e.target.value))}
+          />
+          <div className="flex justify-between text-[11px] text-slate-400">
+            <span>Smaller footprint</span>
+            <span className="text-slate-300 font-mono" id="est-size">
+              Est. size: ~{estMb} MB
+            </span>
+          </div>
+        </div>
+
+        {/* Engine Status Notice */}
+        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-950/20 border border-emerald-800/40 text-emerald-400 text-xs mb-6">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>Real-time Canvas + Vulkan Neural Pass Baking ready</span>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3 px-4 rounded-xl font-semibold text-xs text-slate-400 hover:text-slate-200 bg-dark-800 hover:bg-dark-700 transition"
+            className="flex-1 py-2.5 rounded-xl border border-obsidian-700 bg-obsidian-800 hover:bg-obsidian-700 text-slate-300 text-xs font-semibold transition"
           >
             Cancel
           </button>
@@ -167,17 +186,20 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             type="button"
             onClick={handleDownload}
             disabled={isExporting}
-            className="flex-[2] py-3 px-4 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-brand-600 to-accent-600 hover:from-brand-500 hover:to-accent-500 active:scale-[0.98] shadow-lg shadow-brand-500/25 flex items-center justify-center space-x-2 transition disabled:opacity-50"
+            className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-glow-blue transition flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             {isExporting ? (
               <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Rendering High-Res Export...</span>
+                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                </svg>
+                <span>Packaging Lossless 4K...</span>
               </>
             ) : (
               <>
                 <Download className="w-4 h-4" />
-                <span>Download {format.toUpperCase()}</span>
+                <span>Download 4K Image</span>
               </>
             )}
           </button>

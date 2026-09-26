@@ -52,6 +52,18 @@ export interface ExportOptions {
   preserveMetadata?: boolean;
 }
 
+export type NanoBananaModelId =
+  | 'gemini-3.1-flash-lite-image' // Nano Banana 2 Lite
+  | 'gemini-3.1-flash-image'      // Nano Banana 2
+  | 'gemini-3-pro-image';         // Nano Banana Pro
+
+export interface NanoBananaReferenceInput {
+  buffer: Buffer;
+  mimeType: string;
+  label?: string;
+  originalName?: string;
+}
+
 export interface ProcessedResult {
   outputPath: string;
   metadata: ImageMetadata;

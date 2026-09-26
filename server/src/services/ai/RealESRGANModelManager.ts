@@ -23,7 +23,7 @@ export class RealESRGANModelManager {
 
   private constructor() {
     // Resolve absolute path to bin directory with env override support
-    const serverRoot = path.resolve(__dirname, '../../../');
+    const serverRoot = process.cwd();
     const customBin = process.env.REAL_ESRGAN_EXECUTABLE_PATH;
     const customModels = process.env.REAL_ESRGAN_MODELS_DIR;
 

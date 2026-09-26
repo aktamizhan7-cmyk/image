@@ -1,17 +1,14 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import {
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
-  Split,
-  Eye,
-  Move,
-} from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ManualAdjustmentSettings } from '../types';
 import { ManualImageProcessor } from '../services/manualEngine';
 
+// Default mock SVGs from the design specification when no image is loaded
+const DEFAULT_ENHANCED_SVG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='860' height='540' viewBox='0 0 860 540'%3E%3Cdefs%3E%3ClinearGradient id='skin' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23884d28'/%3E%3Cstop offset='50%25' stop-color='%23b26c39'/%3E%3Cstop offset='100%25' stop-color='%23643419'/%3E%3C/linearGradient%3E%3CradialGradient id='rim' cx='70%25' cy='30%25' r='60%25'%3E%3Cstop offset='0%25' stop-color='%23f59e0b' stop-opacity='0.4'/%3E%3Cstop offset='100%25' stop-color='%230a0d14' stop-opacity='0.9'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='860' height='540' fill='%230f1420'/%3E%3Ccircle cx='430' cy='240' r='180' fill='url(%23skin)'/%3E%3Ccircle cx='430' cy='240' r='220' fill='url(%23rim)'/%3E%3Ctext x='430' y='245' font-family='sans-serif' font-size='22' font-weight='700' fill='%23ffffff' text-anchor='middle'%3E4K Neural Enhanced &amp; Melanin Preserved%3C/text%3E%3Ctext x='430' y='280' font-family='monospace' font-size='14' fill='%23fbbf24' text-anchor='middle'%3ETrue Melanin Radiance (Zero Chalkiness)%3C/text%3E%3C/svg%3E`;
+
+const DEFAULT_ORIGINAL_SVG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='860' height='540' viewBox='0 0 860 540'%3E%3Cdefs%3E%3Cfilter id='blur-noise'%3E%3CfeGaussianBlur stdDeviation='2.5'/%3E%3C/filter%3E%3C/defs%3E%3Crect width='860' height='540' fill='%23182133'/%3E%3Ccircle cx='430' cy='240' r='180' fill='%23704222' filter='url(%23blur-noise)'/%3E%3Ctext x='430' y='245' font-family='sans-serif' font-size='22' font-weight='600' fill='%2394a3b8' text-anchor='middle'%3EOriginal Low-Res / Chalky 1080p%3C/text%3E%3Ctext x='430' y='280' font-family='monospace' font-size='14' fill='%2364748b' text-anchor='middle'%3EStandard Camera Output (Compressed)%3C/text%3E%3C/svg%3E`;
+
 interface BeforeAfterSliderProps {
-  originalUrl: string;
+  originalUrl?: string | null;
   enhancedUrl?: string | null;
   manualSettings: ManualAdjustmentSettings;
   originalDimensions?: { width: number; height: number };
@@ -25,61 +22,52 @@ export const BeforeAfterSlider: React.FC<BeforeAfterSliderProps> = ({
   manualSettings,
   originalDimensions,
   enhancedDimensions,
-  isProcessing,
 }) => {
   const [sliderPosition, setSliderPosition] = useState(50); // percentage 0 - 100
   const [isDragging, setIsDragging] = useState(false);
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  const [holdOriginal, setHoldOriginal] = useState(false);
+  const [currentZoom, setCurrentZoom] = useState(100);
 
-  const containerRef = useRef<HTMLDivElement>(null);
   const imageWrapperRef = useRef<HTMLDivElement>(null);
 
   // Compute CSS filter for manual enhancements
   const cssFilter = ManualImageProcessor.getCssFilter(manualSettings);
 
-  // Slider dragging logic
-  const handleSliderMove = useCallback((clientX: number) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const pos = Math.max(0, Math.min(100, (x / rect.width) * 100));
-    setSliderPosition(pos);
+  const displayOriginal = originalUrl || DEFAULT_ORIGINAL_SVG;
+  const displayEnhanced = enhancedUrl || originalUrl || DEFAULT_ENHANCED_SVG;
+
+  // Split handle drag logic
+  const updateSplitPosition = useCallback((clientX: number) => {
+    if (!imageWrapperRef.current) return;
+    const rect = imageWrapperRef.current.getBoundingClientRect();
+    let offsetX = clientX - rect.left;
+    if (offsetX < 0) offsetX = 0;
+    if (offsetX > rect.width) offsetX = rect.width;
+    const percentage = (offsetX / rect.width) * 100;
+    setSliderPosition(Math.max(0, Math.min(100, percentage)));
   }, []);
 
-  const handleMouseDownSlider = (e: React.MouseEvent) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsDragging(true);
   };
 
-  const handleTouchStartSlider = (_e: React.TouchEvent) => {
+  const handleTouchStart = () => {
     setIsDragging(true);
   };
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (isDragging) {
-        handleSliderMove(e.clientX);
-      } else if (isPanning) {
-        setPan({
-          x: e.clientX - panStart.x,
-          y: e.clientY - panStart.y,
-        });
-      }
+      if (!isDragging) return;
+      updateSplitPosition(e.clientX);
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
-      setIsPanning(false);
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (isDragging && e.touches.length > 0) {
-        handleSliderMove(e.touches[0].clientX);
-      }
+      if (!isDragging || !e.touches[0]) return;
+      updateSplitPosition(e.touches[0].clientX);
     };
 
     const handleTouchEnd = () => {
@@ -88,7 +76,7 @@ export const BeforeAfterSlider: React.FC<BeforeAfterSliderProps> = ({
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('touchmove', handleTouchMove);
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
     window.addEventListener('touchend', handleTouchEnd);
 
     return () => {
@@ -97,201 +85,168 @@ export const BeforeAfterSlider: React.FC<BeforeAfterSliderProps> = ({
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [isDragging, isPanning, panStart, handleSliderMove]);
-
-  // Pan interaction when zoomed
-  const handleContainerMouseDown = (e: React.MouseEvent) => {
-    // Only pan if zoomed and not clicking the slider handle
-    if (zoom > 1 && !isDragging) {
-      setIsPanning(true);
-      setPanStart({
-        x: e.clientX - pan.x,
-        y: e.clientY - pan.y,
-      });
-    }
-  };
+  }, [isDragging, updateSplitPosition]);
 
   // Zoom controls
-  const handleZoomIn = () => setZoom((z) => Math.min(4, Number((z + 0.5).toFixed(1))));
-  const handleZoomOut = () => setZoom((z) => Math.max(1, Number((z - 0.5).toFixed(1))));
-  const handleFit = () => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
+  const handleZoomIn = () => {
+    setCurrentZoom((prev) => Math.min(250, prev + 20));
   };
 
-  const effectiveEnhancedUrl = enhancedUrl || originalUrl;
-  const isSplitMode = !!enhancedUrl && !holdOriginal;
+  const handleZoomOut = () => {
+    setCurrentZoom((prev) => Math.max(50, prev - 20));
+  };
+
+  const handleZoomFit = () => {
+    setCurrentZoom(100);
+  };
+
+  // Dimensions formatted
+  const origDimStr = originalDimensions
+    ? `${originalDimensions.width}×${originalDimensions.height}`
+    : '1920×1080';
+  const enhDimStr = enhancedDimensions
+    ? `${enhancedDimensions.width}×${enhancedDimensions.height}`
+    : '7680×4320';
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#07090e] relative select-none overflow-hidden">
-      {/* Top Floating Viewport Toolbar */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center space-x-2 bg-dark-900/90 backdrop-blur-md border border-dark-700/80 px-3 py-1.5 rounded-2xl shadow-2xl">
-        {/* Zoom Controls */}
-        <button
-          onClick={handleZoomOut}
-          disabled={zoom <= 1}
-          className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-dark-800 disabled:opacity-30 transition"
-          title="Zoom Out"
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
-        <span className="text-xs font-mono font-medium text-slate-300 w-11 text-center">
-          {Math.round(zoom * 100)}%
-        </span>
-        <button
-          onClick={handleZoomIn}
-          disabled={zoom >= 4}
-          className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-dark-800 disabled:opacity-30 transition"
-          title="Zoom In"
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
+    <div
+      className="flex-1 flex flex-col bg-obsidian-950/90 relative border-r border-obsidian-800/80 overflow-hidden select-none"
+      data-purpose="viewport-container"
+    >
+      {/* Canvas Toolbar */}
+      <div className="h-10 bg-obsidian-900/90 border-b border-obsidian-800 px-4 flex items-center justify-between z-20 text-xs text-slate-400 select-none">
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 font-medium text-slate-300">
+            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span>4K Vulkan Canvas Stream</span>
+          </span>
+          <span className="bg-obsidian-800 text-[11px] px-2 py-0.5 rounded border border-obsidian-700 text-slate-400 font-mono">
+            60 FPS
+          </span>
+        </div>
 
-        <div className="w-[1px] h-4 bg-dark-700 mx-1" />
+        {/* Split View Info */}
+        <div className="hidden sm:flex items-center gap-4 text-xs font-mono">
+          <span className="text-slate-400 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span> Left: Original (1080p)
+          </span>
+          <span className="text-blue-400 font-medium flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping"></span> Right: Super-Res (4K AI) + Graded
+          </span>
+        </div>
 
-        <button
-          onClick={handleFit}
-          className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-dark-800 transition"
-          title="Fit to Screen (100%)"
-        >
-          <Maximize2 className="w-4 h-4" />
-        </button>
-
-        {enhancedUrl && (
-          <>
-            <div className="w-[1px] h-4 bg-dark-700 mx-1" />
-            <button
-              onMouseDown={() => setHoldOriginal(true)}
-              onMouseUp={() => setHoldOriginal(false)}
-              onMouseLeave={() => setHoldOriginal(false)}
-              onTouchStart={() => setHoldOriginal(true)}
-              onTouchEnd={() => setHoldOriginal(false)}
-              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition ${
-                holdOriginal
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                  : 'bg-dark-800 text-slate-300 hover:text-white hover:bg-dark-700'
-              }`}
-              title="Click and hold to view original image"
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span>Hold for Original</span>
-            </button>
-          </>
-        )}
+        {/* Zoom / Fit Controls */}
+        <div className="flex items-center gap-1 bg-obsidian-850 p-0.5 rounded border border-obsidian-700">
+          <button
+            onClick={handleZoomOut}
+            className="p-1 hover:bg-obsidian-700 rounded text-slate-300 transition"
+            title="Zoom Out"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <line x1="5" x2="19" y1="12" y2="12"></line>
+            </svg>
+          </button>
+          <span className="px-1.5 text-[11px] font-mono text-slate-300 min-w-[3rem] text-center">
+            {currentZoom}%
+          </span>
+          <button
+            onClick={handleZoomIn}
+            className="p-1 hover:bg-obsidian-700 rounded text-slate-300 transition"
+            title="Zoom In"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <line x1="12" x2="12" y1="5" y2="19"></line>
+              <line x1="5" x2="19" y1="12" y2="12"></line>
+            </svg>
+          </button>
+          <button
+            onClick={handleZoomFit}
+            className="px-2 py-0.5 text-[10px] font-semibold bg-obsidian-700 hover:bg-obsidian-600 rounded text-blue-300 ml-1 transition"
+          >
+            FIT
+          </button>
+        </div>
       </div>
 
-      {/* Main Canvas / Image Comparison Area */}
+      {/* Interactive Split Canvas Stage */}
       <div
-        ref={containerRef}
-        onMouseDown={handleContainerMouseDown}
-        className={`flex-1 relative flex items-center justify-center overflow-hidden canvas-checkerboard ${
-          zoom > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
-        }`}
+        className="flex-1 relative w-full h-full flex items-center justify-center p-4 select-none overflow-hidden bg-[radial-gradient(#1e263d_1px,transparent_1px)] [background-size:16px_16px]"
+        id="split-stage"
       >
         <div
           ref={imageWrapperRef}
           style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transition: isPanning ? 'none' : 'transform 0.15s ease-out',
+            transform: `scale(${currentZoom / 100})`,
+            width: '860px',
+            height: '540px',
+            maxWidth: '100%',
+            maxHeight: '100%',
           }}
-          className="relative max-w-[90%] max-h-[85%] flex items-center justify-center shadow-2xl rounded-lg overflow-hidden"
+          className="relative rounded-lg overflow-hidden shadow-2xl border border-obsidian-700/80 transition-transform duration-100"
         >
-          {/* Enhanced Image (Background/Right Layer) */}
-          <div className="relative">
+          {/* Layer 1: Enhanced (Right Side under-layer with CSS filters) */}
+          <div className="absolute inset-0 w-full h-full overflow-hidden" id="enhanced-layer">
             <img
-              src={effectiveEnhancedUrl}
-              alt="Enhanced"
-              draggable={false}
+              src={displayEnhanced}
+              alt="Enhanced 4K Preview"
               style={{ filter: cssFilter }}
-              className="max-w-[85vw] max-h-[75vh] w-auto h-auto object-contain block pointer-events-none select-none"
+              className="w-full h-full object-cover select-none pointer-events-none"
             />
-
-            {/* Split Mode: Original Image (Foreground/Left Layer with clip-path) */}
-            {isSplitMode && (
-              <div
-                className="absolute inset-0 overflow-hidden pointer-events-none"
-                style={{
-                  clipPath: `polygon(0 0, ${sliderPosition}% 0, ${sliderPosition}% 100%, 0 100%)`,
-                }}
-              >
-                <img
-                  src={originalUrl}
-                  alt="Original"
-                  draggable={false}
-                  className="max-w-[85vw] max-h-[75vh] w-auto h-auto object-contain block select-none"
-                />
-              </div>
-            )}
+            {/* Enhanced Overlay Badge */}
+            <span className="absolute top-4 right-4 bg-brand-600/90 text-white text-[11px] font-semibold px-2.5 py-1 rounded shadow-lg backdrop-blur-md border border-blue-400/40">
+              Enhanced 4K (Melanin Safe)
+            </span>
           </div>
 
-          {/* Interactive Split Divider & Handle */}
-          {isSplitMode && (
-            <div
-              style={{ left: `${sliderPosition}%` }}
-              onMouseDown={handleMouseDownSlider}
-              onTouchStart={handleTouchStartSlider}
-              className="absolute top-0 bottom-0 w-1 -ml-0.5 bg-white/80 cursor-ew-resize hover:bg-white z-10 transition-colors shadow-[0_0_12px_rgba(0,0,0,0.8)]"
-            >
-              <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 left-1/2 w-8 h-8 rounded-full bg-dark-900/90 border-2 border-white flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-transform">
-                <Split className="w-4 h-4 text-white rotate-90" />
-              </div>
-            </div>
-          )}
+          {/* Layer 2: Original (Left Side clipped by slider percentage) */}
+          <div
+            className="absolute inset-0 h-full overflow-hidden border-r-2 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+            style={{ width: `${sliderPosition}%` }}
+          >
+            <img
+              src={displayOriginal}
+              alt="Original Raw Preview"
+              style={{ width: '860px', maxWidth: 'none' }}
+              className="absolute top-0 left-0 h-full object-cover select-none pointer-events-none"
+            />
+            {/* Original Overlay Badge */}
+            <span className="absolute top-4 left-4 bg-obsidian-950/80 text-slate-300 text-[11px] font-semibold px-2.5 py-1 rounded shadow-lg backdrop-blur-md border border-obsidian-700">
+              Original 1080p
+            </span>
+          </div>
 
-          {/* Side Labels */}
-          {isSplitMode && (
-            <>
-              <div className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-[11px] font-semibold text-slate-300 pointer-events-none tracking-wide uppercase">
-                Original
-              </div>
-              <div className="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-brand-600/80 backdrop-blur-md border border-brand-400/30 text-[11px] font-semibold text-white pointer-events-none tracking-wide uppercase shadow-lg shadow-brand-600/20">
-                Enhanced
-              </div>
-            </>
-          )}
-
-          {holdOriginal && (
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-lg bg-amber-500/90 text-dark-950 font-bold text-xs pointer-events-none uppercase tracking-wider">
-              Showing Original
+          {/* Slider Divider Handle */}
+          <div
+            style={{ left: `${sliderPosition}%` }}
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            className="absolute top-0 bottom-0 cursor-ew-resize flex items-center justify-center -ml-4 w-8 z-30 select-none"
+          >
+            <div className="w-7 h-7 rounded-full bg-white text-obsidian-900 shadow-glow-blue flex items-center justify-center border-2 border-brand-500 transform active:scale-110 transition-transform hover:scale-105">
+              <svg className="w-3.5 h-3.5 text-obsidian-900" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path d="m9 18-6-6 6-6M15 6l6 6-6 6"></path>
+              </svg>
             </div>
-          )}
-
-          {isProcessing && (
-            <div className="absolute inset-0 bg-dark-950/70 backdrop-blur-sm flex flex-col items-center justify-center z-30 select-none animate-fade-in">
-              <div className="w-12 h-12 rounded-full border-3 border-brand-500 border-t-transparent animate-spin mb-3 shadow-lg shadow-brand-500/30" />
-              <span className="text-white font-semibold text-xs tracking-wider uppercase">
-                Enhancing Image...
-              </span>
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Bottom Info Bar */}
-      <div className="h-9 border-t border-dark-800/80 bg-dark-950/80 px-4 flex items-center justify-between text-xs text-slate-400 font-mono select-none">
-        <div className="flex items-center space-x-3">
-          {originalDimensions && (
-            <span>
-              Original: <span className="text-slate-200">{originalDimensions.width}×{originalDimensions.height}</span>
-            </span>
-          )}
-          {enhancedDimensions && (
-            <>
-              <span className="text-slate-600">•</span>
-              <span className="text-brand-400">
-                Enhanced: <span className="font-semibold text-brand-300">{enhancedDimensions.width}×{enhancedDimensions.height}</span>
-              </span>
-            </>
-          )}
+      {/* Canvas Bottom Status Bar */}
+      <div className="h-9 bg-obsidian-950 border-t border-obsidian-800 px-4 flex items-center justify-between text-[11px] text-slate-400">
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-slate-400">
+            Dim: <strong className="text-slate-200">{origDimStr}</strong> →{' '}
+            <strong className="text-blue-400">{enhDimStr}</strong>
+          </span>
+          <span className="text-obsidian-700">|</span>
+          <span className="font-mono">
+            Color: <strong className="text-amber-400">DCI-P3 10-bit Melanin Calibrated</strong>
+          </span>
         </div>
-
-        <div className="flex items-center space-x-3 text-[11px]">
-          {zoom > 1 && (
-            <span className="flex items-center gap-1 text-slate-400">
-              <Move className="w-3 h-3 text-brand-400" /> Click and drag to pan
-            </span>
-          )}
-          <span>{isSplitMode ? 'Drag divider to compare' : 'Ready'}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-emerald-400 flex items-center gap-1 font-mono">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> NCNN Vulkan GPU Active
+          </span>
         </div>
       </div>
     </div>

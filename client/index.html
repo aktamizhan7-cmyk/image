@@ -1,18 +1,95 @@
 <!doctype html>
 <html lang="en" class="dark">
   <head>
+    <script>
+      (function () {
+        // Prevent Vite WebSocket connection errors from bubbling up as unhandled rejections
+        window.addEventListener('unhandledrejection', function (event) {
+          const reason = event.reason;
+          const msg = (reason && (reason.message || String(reason))) || '';
+          if (
+            msg.includes('WebSocket') ||
+            msg.includes('websocket') ||
+            msg.includes('vite')
+          ) {
+            event.preventDefault();
+            if (typeof event.stopImmediatePropagation === 'function') {
+              event.stopImmediatePropagation();
+            }
+          }
+        });
+
+        window.addEventListener('error', function (event) {
+          const msg = event.message || '';
+          if (
+            msg.includes('WebSocket') ||
+            msg.includes('websocket') ||
+            msg.includes('vite')
+          ) {
+            event.preventDefault();
+            if (typeof event.stopImmediatePropagation === 'function') {
+              event.stopImmediatePropagation();
+            }
+          }
+        });
+
+        // Intercept Vite HMR WebSocket connection attempts cleanly
+        const OriginalWebSocket = window.WebSocket;
+        if (OriginalWebSocket) {
+          window.WebSocket = function (url, protocols) {
+            const isViteHmr =
+              (typeof protocols === 'string' && protocols.includes('vite-hmr')) ||
+              (Array.isArray(protocols) && protocols.includes('vite-hmr')) ||
+              (typeof url === 'string' && (url.includes('vite-hmr') || url.includes('/@vite') || url.includes('token=')));
+
+            if (isViteHmr) {
+              const target = new EventTarget();
+              target.CONNECTING = 0;
+              target.OPEN = 1;
+              target.CLOSING = 2;
+              target.CLOSED = 3;
+              target.readyState = target.OPEN;
+              target.url = url;
+              target.protocol = 'vite-hmr';
+              target.extensions = '';
+              target.bufferedAmount = 0;
+              target.binaryType = 'blob';
+              target.send = function () {};
+              target.close = function () {};
+              target.onopen = null;
+              target.onclose = null;
+              target.onerror = null;
+              target.onmessage = null;
+              queueMicrotask(() => {
+                try {
+                  if (typeof target.onopen === 'function') target.onopen(new Event('open'));
+                  target.dispatchEvent(new Event('open'));
+                } catch (_) {}
+              });
+              return target;
+            }
+            return new OriginalWebSocket(url, protocols);
+          };
+          window.WebSocket.prototype = OriginalWebSocket.prototype;
+          window.WebSocket.CONNECTING = 0;
+          window.WebSocket.OPEN = 1;
+          window.WebSocket.CLOSING = 2;
+          window.WebSocket.CLOSED = 3;
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z'/><path d='m14 7 3 3'/><path d='M5 6v4'/><path d='M19 14v4'/><path d='M10 2v2'/><path d='M7 8H3'/><path d='M21 16h-4'/><path d='M11 3H9'/></svg>" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23000000'/><g fill='%23ffffff' transform='translate(15, 8) scale(0.14)'><path d='M250,185 C244,175 238,160 236,148 C238,164 242,176 245,188 C241,202 240,218 242,230 C236,238 228,250 228,270 C228,285 233,300 236,310 C228,330 218,365 218,405 C218,442 230,482 246,518 L250,526 L254,518 C270,482 282,442 282,405 C282,365 272,330 264,310 C267,300 272,285 272,270 C272,250 264,238 258,230 C260,218 259,202 255,188 C258,176 262,164 264,148 C262,160 256,175 250,185 Z'/><path d='M256,225 C264,198 280,148 322,78 C313,116 298,172 283,218 C278,233 270,242 262,246 Z'/><path d='M268,248 L316,214 C336,184 366,138 412,108 C410,154 396,204 391,222 L326,260 L268,266 Z'/><path d='M268,274 L331,271 L412,301 C402,352 394,412 389,466 C381,418 366,358 341,322 L268,289 Z'/><path d='M265,299 L331,329 C362,377 364,453 344,534 C328,590 308,630 288,655 C314,615 336,544 331,463 C326,397 298,346 259,321 Z'/><path d='M244,225 C236,198 220,148 178,78 C187,116 202,172 217,218 C222,233 230,242 238,246 Z'/><path d='M232,248 L184,214 C164,184 134,138 88,108 C90,154 104,204 109,222 L174,260 L232,266 Z'/><path d='M232,274 L169,271 L88,301 C98,352 106,412 111,466 C119,418 134,358 159,322 L232,289 Z'/><path d='M235,299 L169,329 C138,377 136,453 156,534 C172,590 192,630 212,655 C186,615 164,544 169,463 C174,397 202,346 241,321 Z'/></g></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI & Manual Image Enhancer</title>
-    <meta name="description" content="Production-quality AI + Manual Image Enhancer application featuring real-time super-resolution, skin tone optimization, and pro grading controls." />
-    <meta property="og:title" content="AI & Manual Image Enhancer" />
-    <meta property="og:description" content="Production-quality AI + Manual Image Enhancer application featuring real-time super-resolution, skin tone optimization, and pro grading controls." />
+    <title>SPIDY Enhancer - AI + Pro Manual Image Enhancer</title>
+    <meta name="description" content="SPIDY Enhancer - Production-quality AI + Manual Image Enhancer application featuring real-time super-resolution, Melanin Guard skin calibration, and pro grading controls." />
+    <meta property="og:title" content="SPIDY Enhancer - AI + Pro Manual Image Enhancer" />
+    <meta property="og:description" content="SPIDY Enhancer - Production-quality AI + Manual Image Enhancer application featuring real-time super-resolution, Melanin Guard skin calibration, and pro grading controls." />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   </head>
-  <body class="bg-dark-950 text-slate-100 antialiased font-['Plus_Jakarta_Sans',sans-serif] selection:bg-brand-500/30 selection:text-brand-400 overflow-hidden">
+  <body class="bg-obsidian-900 text-slate-100 antialiased font-['Plus_Jakarta_Sans',sans-serif] selection:bg-brand-500/30 selection:text-brand-400 min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

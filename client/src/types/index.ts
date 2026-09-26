@@ -1,12 +1,12 @@
-export type SkinToneMode = 'wheatish_golden' | 'dusky_bronze' | 'warm_olive' | 'anti_whitewash' | 'none';
+export type SkinToneMode = 'wheatish_golden' | 'dusky_bronze' | 'warm_olive' | 'anti_whitewash' | 'deep_rich' | 'none';
 
 export interface EnhancementOptions {
-  scale: 2 | 4;
+  scale: 2 | 4 | 8;
   denoiseStrength: number; // 0 - 100
   sharpenStrength: number; // 0 - 100
   lightingCorrection: boolean;
   colorCorrection: boolean;
-  model: 'realesrgan-x4plus' | 'realesrgan-x2plus';
+  model: 'realesrgan-x4plus' | 'realesrgan-x2plus' | 'realesrgan-x4plus-anime' | 'realesrnet-x4plus';
   // South Asian & Indian Skin Tone Optimization
   skinToneProtection: boolean;
   skinToneMode: SkinToneMode;
@@ -193,6 +193,7 @@ export interface ImageMetadata {
   height: number;
   format: string;
   size: number;
+  sizeBytes?: number;
   aspectRatio: number;
   hasAlpha?: boolean;
   space?: string;
@@ -212,3 +213,128 @@ export interface ProcessedImageResult {
   provider: string;
   modelUsed?: string;
 }
+
+export type BatchItemStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+
+export interface BatchQueueItem {
+  id: string;
+  file: File;
+  name: string;
+  size: number;
+  previewUrl: string;
+  status: BatchItemStatus;
+  progress: number;
+  originalMeta?: ImageMetadata;
+  enhancedBlob?: Blob;
+  enhancedUrl?: string;
+  enhancedMeta?: ImageMetadata;
+  processingTimeMs?: number;
+  error?: string;
+}
+
+export type PresetCategory = 'custom' | 'portrait' | 'cinematic' | 'landscape' | 'vintage' | 'vibrant' | 'monochrome';
+
+export interface AdjustmentPreset {
+  id: string;
+  name: string;
+  description?: string;
+  category: PresetCategory;
+  isBuiltIn?: boolean;
+  colorBadge?: string;
+  createdAt: string;
+  updatedAt?: string;
+  manualSettings: Partial<ManualAdjustmentSettings>;
+  enhancementOptions?: Partial<EnhancementOptions>;
+  author?: string;
+  tags?: string[];
+}
+
+export type ContactPriority = 'normal' | 'high' | 'urgent';
+
+export interface ContactTicketResponse {
+  id: string;
+  name?: string;
+  email?: string;
+  topic: string;
+  priority: ContactPriority;
+  status: 'received' | 'in_review' | 'assigned' | 'resolved';
+  createdAt: string;
+  slaResponseHours: number;
+  estimatedResolutionTime: string;
+  assignedTeam: string;
+  hasAttachment?: boolean;
+  attachmentName?: string;
+}
+
+export interface ContactSubmissionPayload {
+  name: string;
+  email: string;
+  organization?: string;
+  priority?: ContactPriority;
+  topic: string;
+  message: string;
+}
+
+export interface ContactTopicInfo {
+  id: string;
+  label: string;
+  description: string;
+  defaultSlaHours: number;
+  team: string;
+}
+
+export type NanoBananaModelId =
+  | 'gemini-3.1-flash-lite-image' // Nano Banana 2 Lite
+  | 'gemini-3.1-flash-image'      // Nano Banana 2
+  | 'gemini-3-pro-image';         // Nano Banana Pro
+
+export interface NanoBananaModelOption {
+  id: NanoBananaModelId;
+  name: string;
+  badge: string;
+  description: string;
+  speed: string;
+  recommendedFor: string;
+  resolutions: string[];
+}
+
+export const NANO_BANANA_MODELS: NanoBananaModelOption[] = [
+  {
+    id: 'gemini-3.1-flash-lite-image',
+    name: 'Nano Banana 2 Lite',
+    badge: 'Ultra Fast',
+    description: 'Optimized for high-speed generation, rapid prototyping, and quick creative iterations.',
+    speed: '~1.8s',
+    recommendedFor: 'Fast edits, social avatars, rapid concept exploration',
+    resolutions: ['512px', '1K'],
+  },
+  {
+    id: 'gemini-3.1-flash-image',
+    name: 'Nano Banana 2',
+    badge: 'Standard Pro',
+    description: 'Native high-fidelity Gemini image engine with photorealistic rendering and precise semantic editing.',
+    speed: '~3.2s',
+    recommendedFor: 'General generative edits, background swaps, object edits, portrait retouching',
+    resolutions: ['512px', '1K', '2K', '4K'],
+  },
+  {
+    id: 'gemini-3-pro-image',
+    name: 'Nano Banana Pro',
+    badge: 'Flagship Studio',
+    description: 'Flagship professional Gemini model with deep multi-reference fidelity and complex reasoning.',
+    speed: '~5.5s',
+    recommendedFor: 'Complex commercial workflows, multi-image composition, intricate prompt adherence',
+    resolutions: ['1K', '2K', '4K'],
+  },
+];
+
+export interface ReferenceImageSlot {
+  id: string;
+  label: string;
+  file?: File;
+  previewUrl?: string;
+  roleHint: 'subject' | 'clothing' | 'background' | 'lighting' | 'style';
+}
+
+
+

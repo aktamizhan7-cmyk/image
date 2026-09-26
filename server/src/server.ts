@@ -5,6 +5,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import imageRoutes from './routes/imageRoutes.js';
+import contactRoutes from './routes/contactRoutes.js';
+import { nanoBananaRouter } from './index.js';
 
 // Load environment variables from server and workspace root directories
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -44,7 +46,14 @@ app.use(
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    exposedHeaders: ['x-processing-time-ms', 'x-image-metadata', 'x-provider-name', 'Content-Disposition'],
+    exposedHeaders: [
+      'x-processing-time-ms',
+      'x-image-metadata',
+      'x-provider-name',
+      'x-super-resolved',
+      'x-ai-description',
+      'Content-Disposition',
+    ],
     credentials: true,
   })
 );
@@ -65,6 +74,10 @@ app.get('/api/health', (_req: Request, res: Response) => {
 
 // Image Processing Endpoints
 app.use('/api/images', imageRoutes);
+app.use('/api/nano-banana', nanoBananaRouter);
+
+// Support & Contact Inquiries Endpoints
+app.use('/api/contact', contactRoutes);
 
 // Safe global error handler - never leaks internal paths or stack traces
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

@@ -3,17 +3,13 @@ import path from 'path';
 import fs from 'fs';
 import { Request, Response, NextFunction } from 'express';
 import sharp from 'sharp';
+import { UPLOADS_DIR, ensureTempDirectories } from '../utils/tempPaths.js';
 
-const serverRoot = path.resolve(__dirname, '../../../');
-const uploadDir = path.resolve(serverRoot, 'temp', 'uploads');
-
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+ensureTempDirectories();
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, uploadDir);
+    cb(null, UPLOADS_DIR);
   },
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase() || '.png';
@@ -22,10 +18,10 @@ const storage = multer.diskStorage({
   },
 });
 
-const fileFilter = (
-  _req: Request,
-  file: Express.Multer.File,
-  cb: multer.FileFilterCallback
+const fileFilter: any = (
+  _req: any,
+  file: any,
+  cb: any
 ) => {
   const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
   const allowedExts = ['.jpg', '.jpeg', '.png', '.webp'];
@@ -43,8 +39,15 @@ export const upload = multer({
   limits: {
     fileSize: 25 * 1024 * 1024, // 25 MB
   },
-  fileFilter,
+  fileFilter: fileFilter as any,
 });
+
+export const uploadWithReferences = upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'ref1', maxCount: 1 },
+  { name: 'ref2', maxCount: 1 },
+  { name: 'ref3', maxCount: 1 },
+]);
 
 /**
  * Validates actual image integrity and magic bytes using Sharp
@@ -80,3 +83,47 @@ export async function validateImageIntegrity(req: Request, res: Response, next: 
     });
   }
 }
+
+/**
+ * Validates main image + optional reference images
+ */
+export async function validateMultiImageIntegrity(req: Request, res: Response, next: NextFunction) {
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+  const mainFile = files?.image?.[0] || req.file;
+
+  if (!mainFile) {
+    return res.status(400).json({ error: 'No image file provided.' });
+  }
+
+  try {
+    const metadata = await sharp(mainFile.path).metadata();
+    const maxDim = 8192;
+    if ((metadata.width && metadata.width > maxDim) || (metadata.height && metadata.height > maxDim)) {
+      return res.status(400).json({
+        error: `Image dimensions exceed maximum allowed limit of ${maxDim}x${maxDim}px.`,
+      });
+    }
+
+    (req as any).imageMetadata = metadata;
+
+    if (files) {
+      for (const key of ['ref1', 'ref2', 'ref3']) {
+        const ref = files[key]?.[0];
+        if (ref) {
+          try {
+            await sharp(ref.path).metadata();
+          } catch (e: any) {
+            console.warn(`[validateMultiImageIntegrity] Reference image ${key} error:`, e.message);
+          }
+        }
+      }
+    }
+
+    next();
+  } catch (err) {
+    return res.status(400).json({
+      error: 'Uploaded file is corrupted or not a valid image.',
+    });
+  }
+}
+

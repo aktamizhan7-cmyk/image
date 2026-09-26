@@ -271,4 +271,56 @@ export class ManualImageProcessor {
 
     ctx.putImageData(output, 0, 0);
   }
+
+  /**
+   * Renders image with adjustments and optional scale to a Blob
+   */
+  public static async renderToBlob(
+    imageUrl: string,
+    settings: ManualAdjustmentSettings,
+    options: {
+      format?: 'png' | 'jpeg' | 'webp';
+      quality?: number;
+      scaleMultiplier?: number;
+    } = {}
+  ): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const scale = options.scaleMultiplier || 1;
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth * scale;
+          canvas.height = img.naturalHeight * scale;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('Could not get canvas context');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          const adjustedCanvas = this.applyAdjustments(canvas, settings);
+          const mimeType =
+            options.format === 'jpeg'
+              ? 'image/jpeg'
+              : options.format === 'webp'
+              ? 'image/webp'
+              : 'image/png';
+          const quality = (options.quality || 92) / 100;
+          adjustedCanvas.toBlob(
+            (blob) => {
+              if (blob) resolve(blob);
+              else reject(new Error('Canvas toBlob returned null'));
+            },
+            mimeType,
+            quality
+          );
+        } catch (e) {
+          reject(e);
+        }
+      };
+      img.onerror = (e) => reject(e);
+      img.src = imageUrl;
+    });
+  }
 }

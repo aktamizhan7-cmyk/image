@@ -4,10 +4,10 @@ import { existsSync } from 'fs';
 import sharp from 'sharp';
 import { ExportOptions, ManualAdjustmentSettings, ProcessedResult } from '../../types/index.js';
 import { SkinToneOptimizer } from './skinToneOptimizer.js';
-
+import { TEMP_BASE_DIR, ensureTempDirectories } from '../../utils/tempPaths.js';
 
 export class ManualImageProcessor {
-  private static tempDir = path.resolve(__dirname, '../../../temp');
+  private static tempDir = TEMP_BASE_DIR;
 
   public static async processAndExport(
     inputPath: string,
@@ -23,15 +23,27 @@ export class ManualImageProcessor {
 
     let pipeline = sharp(inputPath).rotate();
 
+    // Safely normalize numeric adjustment values with fallback to 0
+    const brightness = Number(adjustments.brightness) || 0;
+    const exposure = Number(adjustments.exposure) || 0;
+    const saturation = Number(adjustments.saturation) || 0;
+    const tint = Number(adjustments.tint) || 0;
+    const contrast = Number(adjustments.contrast) || 0;
+    const temperature = Number(adjustments.temperature) || 0;
+    const sharpness = Number(adjustments.sharpness) || 0;
+    const clarity = Number(adjustments.clarity) || 0;
+    const blur = Number(adjustments.blur) || 0;
+    const noiseReduction = Number(adjustments.noiseReduction) || 0;
+
     // 1. Exposure & Brightness & Saturation modulation
     // Calculate brightness multiplier
     // Sharp modulate: brightness: 1 = normal, saturation: 1 = normal, hue: degrees
     const brightMult = Math.max(
       0.1,
-      1 + (adjustments.brightness / 100) * 0.5 + (adjustments.exposure / 100) * 0.4
+      1 + (brightness / 100) * 0.5 + (exposure / 100) * 0.4
     );
-    const satMult = Math.max(0, 1 + (adjustments.saturation / 100) * 0.8);
-    const hueDeg = Math.round(adjustments.tint * 0.9);
+    const satMult = Math.max(0, 1 + (saturation / 100) * 0.8);
+    const hueDeg = Math.round(tint * 0.9);
 
     pipeline = pipeline.modulate({
       brightness: brightMult,
@@ -40,16 +52,16 @@ export class ManualImageProcessor {
     });
 
     // 2. Contrast adjustments via linear transformation (a * input + b)
-    if (adjustments.contrast !== 0) {
-      const c = adjustments.contrast / 100;
+    if (contrast !== 0) {
+      const c = contrast / 100;
       const a = 1 + c * 0.6;
       const b = 128 * (1 - a);
       pipeline = pipeline.linear(a, b);
     }
 
     // 3. Temperature (approx via tint/tinting matrix or subtle linear channel scaling)
-    if (adjustments.temperature !== 0) {
-      const t = adjustments.temperature / 100;
+    if (temperature !== 0) {
+      const t = temperature / 100;
       // Warm: boost red, reduce blue
       // Cool: reduce red, boost blue
       const rScale = 1 + t * 0.12;
@@ -65,14 +77,13 @@ export class ManualImageProcessor {
     if (adjustments.skinToneMode && adjustments.skinToneMode !== 'none') {
       pipeline = await SkinToneOptimizer.optimize(pipeline, {
         skinToneMode: adjustments.skinToneMode,
-        melaninWarmth: adjustments.melaninWarmth,
-        antiAshiness: adjustments.antiAshiness,
+        melaninWarmth: adjustments.melaninWarmth || 0,
+        antiAshiness: adjustments.antiAshiness || 0,
       });
     }
 
     // 4. Sharpness & Clarity
-
-    const totalSharp = adjustments.sharpness + adjustments.clarity * 0.5;
+    const totalSharp = sharpness + clarity * 0.5;
     if (totalSharp > 0) {
       const sigma = 0.5 + (totalSharp / 100) * 1.5;
       pipeline = pipeline.sharpen({
@@ -83,13 +94,13 @@ export class ManualImageProcessor {
     }
 
     // 5. Blur
-    if (adjustments.blur > 0) {
-      const blurSigma = Math.max(0.3, (adjustments.blur / 100) * 10);
+    if (blur > 0) {
+      const blurSigma = Math.max(0.3, (blur / 100) * 10);
       pipeline = pipeline.blur(blurSigma);
     }
 
     // 6. Noise reduction
-    if (adjustments.noiseReduction > 40) {
+    if (noiseReduction > 40) {
       pipeline = pipeline.median(1);
     }
 

@@ -6,6 +6,21 @@
   color-scheme: dark;
 }
 
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  min-height: 100%;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -102,4 +117,20 @@ input[type=range]::-webkit-slider-thumb:active {
     linear-gradient(-45deg, transparent 75%, #10131d 75%);
   background-size: 20px 20px;
   background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+/* Melanin amber thumb variation */
+.melanin-slider::-webkit-slider-thumb {
+  background: #f59e0b !important;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.7) !important;
+}
+
+.dashed-border-pulse {
+  background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='16' ry='16' stroke='%23223049FF' stroke-width='2' stroke-dasharray='10%2c 10' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+  border-radius: 16px;
+}
+
+/* Backdrop radial gradient glow */
+.bg-radial-glow {
+  background: radial-gradient(circle at 50% 20%, rgba(37, 99, 235, 0.08) 0%, rgba(10, 13, 20, 0) 65%);
 }

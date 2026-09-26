@@ -7,6 +7,7 @@ import { EnhancementOptions, ProcessedResult } from '../../types/index.js';
 import { RealESRGANModelManager } from './RealESRGANModelManager.js';
 import { ImageAnalyzer } from '../image/imageAnalyzer.js';
 import { SkinToneOptimizer } from '../image/skinToneOptimizer.js';
+import { TEMP_BASE_DIR } from '../../utils/tempPaths.js';
 
 export class RealESRGANProvider implements ImageProcessingProvider {
   public readonly name = 'Real-ESRGAN (NCNN Vulkan)';
@@ -15,8 +16,7 @@ export class RealESRGANProvider implements ImageProcessingProvider {
 
   constructor() {
     this.modelManager = RealESRGANModelManager.getInstance();
-    const serverRoot = path.resolve(__dirname, '../../../');
-    this.tempDir = path.resolve(serverRoot, 'temp');
+    this.tempDir = TEMP_BASE_DIR;
   }
 
   public async isAvailable(): Promise<boolean> {
